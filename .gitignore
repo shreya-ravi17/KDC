@@ -1,0 +1,6 @@
+venv/
+__pycache__/
+*.pyc
+keys/
+demo_output.txt
+test_output.txt

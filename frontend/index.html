@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KDC Session Key Distribution</title>
+<style>
+:root{--bg:#f1f4f9;--ink:#17212f;--mut:#5b6879;--card:#fff;--line:#d9e0ea;--navy:#14213d;--a:#0d9488;--k:#4f46e5;--b:#d97706;--ks:#16a34a;--tk:#9333ea;--bad:#dc2626}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 "Segoe UI",system-ui,sans-serif}
+.top{background:var(--navy);color:#fff;padding:26px 24px 70px}
+.wrap{max-width:1120px;margin:auto}
+.top h1{margin:0;font-size:28px;letter-spacing:-.3px}.top p{margin:6px 0 0;color:#b9c4d8;max-width:75ch}
+main{max-width:1120px;margin:-48px auto 40px;padding:0 24px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px;box-shadow:0 2px 10px rgba(20,33,61,.06);margin-bottom:18px}
+.card h2{margin:0 0 10px;font-size:17px}
+.steps{display:flex;gap:6px;list-style:none;margin:0 0 14px;padding:0;flex-wrap:wrap}
+.steps li{flex:1;min-width:120px;padding:8px 10px;border-radius:8px;background:#eef1f6;color:var(--mut);font-size:13px;border-bottom:4px solid transparent}
+.steps li.done{background:#dcfce7;color:#166534;border-color:var(--ks)}.steps li.cur{background:#e0e7ff;color:#312e81;border-color:var(--k);font-weight:600}
+.ctrl{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+button{font:inherit;font-weight:600;border:0;background:var(--k);color:#fff;padding:9px 18px;border-radius:8px;cursor:pointer}
+button.sec{background:#e5e9f1;color:var(--ink)}button:disabled{opacity:.45;cursor:not-allowed}
+button:focus-visible,input:focus-visible{outline:3px solid #93b4ff;outline-offset:2px}
+.stage{position:relative;height:400px;margin:6px 0 10px;background:linear-gradient(#f8fafd,#f1f4f9);border:1px dashed var(--line);border-radius:12px}
+.stage svg{position:absolute;inset:0;width:100%;height:100%}
+.actor{position:absolute;width:min(240px,42%);background:#fff;border:2px solid var(--c);border-radius:12px;padding:10px 12px;text-align:center;z-index:2}
+.actor .nm{font-weight:700;color:var(--c);font-size:16px}.actor .rl{font-size:12px;color:var(--mut);margin-bottom:6px}
+#aK{--c:var(--k);left:50%;top:14px;transform:translateX(-50%)}#aA{--c:var(--a);left:3%;bottom:14px}#aB{--c:var(--b);right:3%;bottom:14px}
+.chips{display:flex;gap:5px;flex-wrap:wrap;justify-content:center;min-height:26px}
+.chip{font-size:12px;font-weight:600;color:#fff;border-radius:99px;padding:2px 10px}
+.chip.Ka{background:var(--a)}.chip.Kb{background:var(--b)}.chip.Ks{background:var(--ks)}.chip.Tk{background:var(--tk)}
+.chip.new{animation:pop .5s}@keyframes pop{0%{transform:scale(.3)}70%{transform:scale(1.25)}100%{transform:scale(1)}}
+.env{position:absolute;left:0;top:0;z-index:5;background:var(--navy);color:#fff;border-radius:8px;padding:4px 12px;font-size:12px;font-weight:600;white-space:nowrap;opacity:0;box-shadow:0 4px 12px rgba(0,0,0,.25)}
+.env.go{transition:transform 1s ease-in-out}
+.legend{font-size:13px;color:var(--mut)}.legend b{display:inline-block;color:#fff;border-radius:99px;padding:0 8px;margin:0 2px}
+.cols{display:grid;grid-template-columns:1.2fr 1fr;gap:18px}@media(max-width:860px){.cols{grid-template-columns:1fr}.stage{height:460px}}
+.say h3{margin:0 0 6px;font-size:20px}.say p{margin:6px 0}.why{background:#eef2ff;border-left:4px solid var(--k);padding:8px 12px;border-radius:6px;font-size:14px}
+.hood dt{font-size:12px;font-weight:700;color:var(--mut);margin-top:8px}.hood dd{margin:2px 0 0;font:12px/1.5 Consolas,monospace;background:#f4f6fa;border-radius:6px;padding:6px 8px;word-break:break-all}
+.eve{background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:8px 12px;font-size:13px;margin-top:10px}.eve code{font:12px Consolas,monospace;word-break:break-all;color:#991b1b}
+.ok{color:#166534;font-weight:700}.banner{display:none;background:#dcfce7;border:1px solid #86efac;color:#166534;border-radius:10px;padding:10px 14px;margin-top:10px;font-weight:600}
+.chat{height:200px;overflow:auto;background:#f6f8fb;border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:8px}
+.bub{max-width:80%;padding:6px 12px;border-radius:12px;font-size:14px}.bub small{display:block;font:11px Consolas,monospace;opacity:.7;word-break:break-all}
+.bub.A{align-self:flex-start;background:#ccfbf1}.bub.B{align-self:flex-end;background:#fde68a}
+.row{display:flex;gap:8px;margin-top:10px}input{flex:1;font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:8px;min-width:0}
+.atk{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
+.atk button{background:#fff;color:var(--bad);border:2px solid var(--bad);text-align:left;font-weight:600}.atk button small{display:block;font-weight:400;color:var(--mut)}
+.res{margin-top:12px;border-radius:10px;padding:12px 14px;display:none}.res.b{background:#dcfce7;border:1px solid #86efac}.res.f{background:#fee2e2;border:1px solid #fca5a5}
+.badge{display:inline-block;font-size:12px;font-weight:700;border-radius:99px;padding:1px 10px;color:#fff;background:var(--ks);margin-right:6px}.res.f .badge{background:var(--bad)}
+</style></head><body>
+<div class="top"><div class="wrap"><h1>Key Distribution Center (KDC)</h1>
+<p>How can Alice and Bob get a shared secret key over an insecure network? A trusted KDC creates one for them. Click <b>Next step</b> and watch.</p></div></div>
+<main>
+<div class="card">
+ <ol class="steps" id="steps"><li>1 Request</li><li>2 KDC replies</li><li>3 Ticket to Bob</li><li>4 Bob's challenge</li><li>5 Alice's proof</li></ol>
+ <div class="ctrl"><button id="next">Next step</button><button id="auto" class="sec">Play all</button><button id="reset" class="sec">Start over</button></div>
+ <div class="stage" id="stage">
+  <svg id="lines"></svg>
+  <div class="actor" id="aK"><div class="nm">KDC</div><div class="rl">Trusted key server</div><div class="chips" id="hK"></div></div>
+  <div class="actor" id="aA"><div class="nm">Alice</div><div class="rl">Wants to talk to Bob</div><div class="chips" id="hA"></div></div>
+  <div class="actor" id="aB"><div class="nm">Bob</div><div class="rl">Wants to hear from Alice</div><div class="chips" id="hB"></div></div>
+  <div class="env" id="env"></div>
+ </div>
+ <div class="legend"><b style="background:var(--a)">Ka</b>Alice's master key (Alice + KDC) <b style="background:var(--b)">Kb</b>Bob's master key (Bob + KDC) <b style="background:var(--ks)">Ks</b>one-time session key <b style="background:var(--tk)">Ticket</b>Ks locked for Bob</div>
+ <div class="banner" id="done">Secure channel established. Alice and Bob now share Ks and the KDC has forgotten it.</div>
+</div>
+<div class="cols">
+ <div class="card say" id="say"><h2>What is happening</h2><p>Alice and Bob share no secret yet. Each only shares a long-term master key with the KDC. Press <b>Next step</b> to begin.</p></div>
+ <div class="card hood"><h2>Under the hood (real AES-256-GCM)</h2><dl><dt>Before locking</dt><dd id="hp">-</dd><dt>On the network</dt><dd id="hc">-</dd><dt>Who can open it</dt><dd id="hw">-</dd></dl>
+  <div class="eve"><b>Eve is spying on the wire.</b> She sees: <code id="eve">nothing yet</code></div></div>
+</div>
+<div class="card"><h2>Secure chat <span style="font-weight:400;color:var(--mut);font-size:13px">(unlocks after step 5)</span></h2>
+ <div class="chat" id="chat"></div>
+ <div class="row"><input id="txt" placeholder="Type a message" disabled><button id="sA" disabled>Send as Alice</button><button id="sB" class="sec" disabled>Send as Bob</button></div></div>
+<div class="card"><h2>Attack lab</h2><p style="margin-top:0;color:var(--mut)">Run steps 1 to 5 first, then try to break it.</p>
+ <div class="atk">
+  <button data-a="eve">Eavesdrop<small>Eve tries to read the ticket</small></button>
+  <button data-a="replay">Replay<small>Re-send an old ticket to Bob</small></button>
+  <button data-a="tamper">Tamper<small>Flip one bit of the ticket</small></button>
+  <button data-a="mallory">Impostor<small>Unregistered user asks the KDC</small></button>
+  <button data-a="expire">Expire key<small>Session lifetime ends</small></button>
+ </div>
+ <div class="res" id="res"><span class="badge" id="rb"></span><b id="rt"></b><div id="rd" style="margin-top:4px"></div></div></div>
+</main>
+<script>
+const $=id=>document.getElementById(id),te=new TextEncoder(),td=new TextDecoder(),sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const hex=u=>[...u].map(x=>x.toString(16).padStart(2,"0")).join(""),short=u=>hex(u).slice(0,56)+"\u2026";
+const b64=u=>btoa(String.fromCharCode(...u)),unb64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+const rnd=n=>crypto.getRandomValues(new Uint8Array(n));
+const newKey=()=>crypto.subtle.generateKey({name:"AES-GCM",length:256},true,["encrypt","decrypt"]);
+const raw=async k=>new Uint8Array(await crypto.subtle.exportKey("raw",k));
+async function enc(k,o){const iv=rnd(12),ct=new Uint8Array(await crypto.subtle.encrypt({name:"AES-GCM",iv},k,te.encode(JSON.stringify(o))));const r=new Uint8Array(12+ct.length);r.set(iv);r.set(ct,12);return r}
+async function dec(k,u){try{return JSON.parse(td.decode(await crypto.subtle.decrypt({name:"AES-GCM",iv:u.slice(0,12)},k,u.slice(12))))}catch(e){throw Error("auth")}}
+const pos={Alice:"aA",KDC:"aK",Bob:"aB"},H={Alice:"hA",KDC:"hK",Bob:"hB"};
+let S,busy=false;
+const chipHTML=(h,fresh)=>h.map(c=>`<span class="chip ${c[0]==='T'?'Tk':c}${fresh===c?' new':''}">${c==='Tk'?'Ticket':c}</span>`).join("");
+function hold(fresh){for(const n in H)$(H[n]).innerHTML=chipHTML(S.h[n],fresh)}
+function lines(){const s=$("stage").getBoundingClientRect(),c=n=>{const r=$(pos[n]).getBoundingClientRect();return[r.left-s.left+r.width/2,r.top-s.top+r.height/2]};
+ const [ax,ay]=c("Alice"),[kx,ky]=c("KDC"),[bx,by]=c("Bob");
+ const l=(x1,y1,x2,y2)=>`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#b6c1d3" stroke-width="3" stroke-dasharray="7 7"/>`;
+ $("lines").innerHTML=l(ax,ay,kx,ky)+l(kx,ky,bx,by)+l(ax,ay,bx,by)}
+addEventListener("resize",lines);
+async function fly(from,to,label){const s=$("stage").getBoundingClientRect(),e=$("env");
+ const c=n=>{const r=$(pos[n]).getBoundingClientRect();return[r.left-s.left+r.width/2,r.top-s.top+r.height/2]};
+ const [x1,y1]=c(from),[x2,y2]=c(to);e.textContent=label;e.classList.remove("go");
+ const w=e.offsetWidth/2,h=e.offsetHeight/2;e.style.transform=`translate(${x1-w}px,${y1-h}px)`;e.style.opacity=1;void e.offsetWidth;
+ e.classList.add("go");e.style.transform=`translate(${x2-w}px,${y2-h}px)`;await sleep(1050);e.style.opacity=0}
+const T=[
+ {t:"Alice asks the KDC for a key",from:"Alice",to:"KDC",label:"Request: Alice wants Bob",
+  say:"Alice wants to chat with Bob but they share no secret. So she contacts the trusted KDC and sends three things: who she is, who she wants to talk to, and a random number N1.",
+  why:"N1 is a one-time stamp. Later Alice checks it to be sure the KDC's answer is fresh and not an old recording.",who:"Nobody needs to. This request is not secret.",
+  async run(){S.n1=hex(rnd(6));return{p:`{ from: "Alice", to: "Bob", N1: "${S.n1}" }`,c:"(not encrypted, just names and N1)",eve:"Alice, Bob and N1 in plain text. No keys, so no harm."}},arrive(){}},
+ {t:"The KDC creates a one-time session key",from:"KDC",to:"Alice",label:"Locked with Ka: Ks + Ticket",
+  say:"The KDC invents a brand-new key Ks and sends it to Alice locked with Alice's master key Ka. Inside is also a ticket: a second copy of Ks locked with Bob's master key Kb.",
+  why:"Only Alice can open the outer lock. Only Bob can open the ticket inside. After sending, the KDC forgets Ks.",who:"Alice (has Ka). Not Bob, not Eve.",
+  async run(){S.Ks=await newKey();const k=b64(await raw(S.Ks));S.exp=Date.now()+6e4;
+   S.ticket=await enc(S.Kb,{ks:k,from:"Alice",exp:S.exp});S.reply=await enc(S.Ka,{ks:k,to:"Bob",n1:S.n1,exp:S.exp,ticket:b64(S.ticket)});
+   S.h.KDC.push("Ks");return{p:`{ Ks: "${k.slice(0,16)}\u2026", for: "Bob", N1: "${S.n1}", ticket: [Ks locked with Kb] }`,c:short(S.reply),eve:short(S.reply)+" (locked, unreadable)"}},
+  async arrive(){const d=await dec(S.Ka,S.reply);if(d.n1!==S.n1)throw Error("N1 mismatch");S.h.KDC=S.h.KDC.filter(x=>x!=="Ks");S.h.Alice.push("Ks","Tk");hold("Ks")}},
+ {t:"Alice hands the ticket to Bob",from:"Alice",to:"Bob",label:"Ticket (locked with Kb)",
+  say:"Alice cannot read the ticket, but she forwards it to Bob. Bob opens it with his master key Kb and now has Ks too.",
+  why:"Bob trusts the ticket because only the KDC knows Kb, so only the KDC could have made it.",who:"Bob (has Kb). Not Alice, not Eve.",
+  async run(){return{p:`{ Ks: "\u2026", from: "Alice", expires: in 60 seconds }`,c:short(S.ticket),eve:short(S.ticket)+" (locked, unreadable)"}},
+  async arrive(){await dec(S.Kb,S.ticket);S.seen.add(b64(S.ticket));S.h.Alice=S.h.Alice.filter(x=>x!=="Tk");S.h.Bob.push("Ks");hold("Ks")}},
+ {t:"Bob tests Alice with a challenge",from:"Bob",to:"Alice",label:"Locked with Ks: challenge N2",
+  say:"Bob sends a random number N2 locked with Ks. Anyone replaying an old, stolen ticket would not be able to open it.",
+  why:"This proves to Bob that the person on the other end really holds Ks right now.",who:"Alice and Bob (both have Ks).",
+  async run(){S.n2=parseInt(hex(rnd(4)),16);S.ch=await enc(S.Ks,{n2:S.n2});return{p:`{ N2: ${S.n2} }`,c:short(S.ch),eve:short(S.ch)+" (locked, unreadable)"}},arrive(){}},
+ {t:"Alice proves she has the key",from:"Alice",to:"Bob",label:"Locked with Ks: N2 - 1",
+  say:"Alice opens the challenge, subtracts 1 from N2, locks the result with Ks and sends it back.",
+  why:"Only someone holding Ks can do this. Bob is now convinced, and both sides share a secret Eve never saw.",who:"Alice and Bob.",
+  async run(){const n=(await dec(S.Ks,S.ch)).n2;S.rs=await enc(S.Ks,{r:n-1});return{p:`{ N2 - 1: ${n-1} }`,c:short(S.rs),eve:short(S.rs)+" (locked, unreadable)"}},
+  async arrive(){const r=await dec(S.Ks,S.rs);if(r.r!==S.n2-1)throw Error("bad");$("done").style.display="block";
+   for(const i of["txt","sA","sB"])$(i).disabled=false}}
+];
+function render(i){const s=T[i];$("say").innerHTML=`<h2>What is happening</h2><h3>Step ${i+1}: ${s.t}</h3><p>${s.say}</p><div class="why"><b>Why it matters:</b> ${s.why}</div>`;
+ [...$("steps").children].forEach((li,j)=>li.className=j<i?"done":j===i?"cur":"")}
+async function next(){if(busy||S.step>=T.length)return;busy=true;$("next").disabled=true;const i=S.step,s=T[i];
+ try{render(i);const r=await s.run();$("hp").textContent=r.p;$("hc").textContent=r.c;$("hw").textContent=s.who;$("eve").textContent=r.eve;
+  hold();await fly(s.from,s.to,s.label);await s.arrive();S.step++;[...$("steps").children].forEach((li,j)=>li.className=j<=i?"done":"");
+  if(S.step<T.length)[...$("steps").children][S.step].className="cur"}
+ catch(e){$("say").innerHTML="<h2>Error</h2><p>"+e.message+"</p>"}
+ busy=false;$("next").disabled=S.step>=T.length}
+$("next").onclick=next;
+$("auto").onclick=async()=>{while(S.step<T.length){await next();await sleep(700)}};
+async function init(){S={Ka:await newKey(),Kb:await newKey(),step:0,seen:new Set(),ticket:null,exp:0,h:{Alice:["Ka"],KDC:["Ka","Kb"],Bob:["Kb"]}};
+ hold();lines();$("done").style.display="none";$("chat").innerHTML="";$("res").style.display="none";$("next").disabled=false;
+ for(const i of["txt","sA","sB"])$(i).disabled=true;$("hp").textContent=$("hc").textContent=$("hw").textContent="-";$("eve").textContent="nothing yet";
+ [...$("steps").children].forEach((li,j)=>li.className=j?"":"cur");
+ $("say").innerHTML="<h2>What is happening</h2><p>Alice and Bob share no secret yet. Each only shares a long-term master key with the KDC. Press <b>Next step</b> to begin.</p>"}
+$("reset").onclick=()=>{if(!busy)init()};
+async function chat(who){const t=$("txt").value.trim();if(!t)return;const live=Date.now()<S.exp;
+ if(!live){res(false,"Message blocked","The session key has expired. Press Start over to get a new one.");return}
+ const c=await enc(S.Ks,{from:who,msg:t}),d=await dec(S.Ks,c),b=document.createElement("div");b.className="bub "+(who==="Alice"?"A":"B");
+ b.innerHTML="<span></span><small></small>";b.firstChild.textContent=who+": "+d.msg;b.lastChild.textContent="on the wire: "+short(c);$("chat").appendChild(b);$("chat").scrollTop=1e9;$("txt").value=""}
+$("sA").onclick=()=>chat("Alice");$("sB").onclick=()=>chat("Bob");$("txt").onkeydown=e=>{if(e.key==="Enter")chat("Alice")};
+function res(blocked,t,d){const r=$("res");r.style.display="block";r.className="res "+(blocked?"b":"f");$("rb").textContent=blocked?"Blocked":"Not blocked";$("rt").textContent=t;$("rd").textContent=d}
+document.querySelectorAll("[data-a]").forEach(b=>b.onclick=async()=>{const a=b.dataset.a;
+ if(a==="mallory"){res(true,"The KDC refuses","Mallory has no master key registered with the KDC, so she gets nothing. Only registered users are served.");return}
+ if(S.step<3){res(false,"Nothing to attack yet","Run at least steps 1 to 3 so there is a ticket on the network.");return}
+ if(a==="eve"){const k=await newKey();try{await dec(k,S.ticket)}catch(e){res(true,"Eve cannot read the ticket","She tried her own key on it and decryption failed. Without Kb or Ks, captured traffic is just noise.")}}
+ if(a==="replay"){res(S.seen.has(b64(S.ticket)),S.seen.has(b64(S.ticket))?"Bob rejects the replay":"Replay accepted","Bob remembers every ticket he has accepted. A second copy of the same ticket is refused, and old tickets also expire.")}
+ if(a==="tamper"){const t=S.ticket.slice();t[t.length-1]^=1;try{await dec(S.Kb,t);res(false,"Accepted","Unexpected.")}catch(e){res(true,"Bob rejects the ticket","Changing a single bit breaks the AES-GCM authentication tag, so modified data is detected and thrown away.")}}
+ if(a==="expire"){S.exp=Date.now()-1;res(true,"Session key expired","Messages with this key are now refused. Try sending one in the chat above. Start over to get a fresh key.")}});
+init();
+</script></body></html>
